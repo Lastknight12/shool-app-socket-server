@@ -1,0 +1,163 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // NOTE: When using mysql or sqlserver, uncomment the @db.Text annotations in model Account below
+  // Further reading:
+  // https://next-auth.js.org/adapters/prisma#create-the-prisma-schema
+  // https://www.prisma.io/docs/reference/api-reference/prisma-schema-reference#string
+  url      = env("DATABASE_URL")
+}
+
+// Necessary for Next auth
+model Account {
+  id                       String  @id @default(cuid())
+  userId                   String
+  type                     String
+  provider                 String
+  providerAccountId        String
+  refresh_token            String? // @db.Text
+  access_token             String? // @db.Text
+  expires_at               Int?
+  token_type               String?
+  scope                    String?
+  id_token                 String? // @db.Text
+  session_state            String?
+  user                     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refresh_token_expires_in Int?
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum UserRole {
+  ADMIN
+  TEACHER
+  STUDENT
+  SELLER
+  RADIO_CENTER
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  image         String
+  balance       Float     @default(0.00)
+  role          UserRole  @default(STUDENT)
+  emailVerified Boolean?
+  accounts      Account[]
+  sessions      Session[]
+
+  recieverTransactions Transaction[] @relation(name: "recieverTransactions")
+  senderTransactions   Transaction[] @relation(name: "senderTransactions")
+
+  teacherClasses Klass[] @relation(name: "teacherClasses")
+
+  studentClass   Klass?  @relation(name: "studentClass", fields: [studentClassId], references: [id])
+  studentClassId String?
+
+  musicOrders    MusicOrder[]
+  KaznaTransfers KaznaTransfer[]
+}
+
+model Category {
+  id    String         @id @default(cuid())
+  name  String         @unique
+  items CategoryItem[]
+}
+
+model CategoryItem {
+  id          String @id @default(cuid())
+  image       String
+  title       String
+  pricePerOne Float
+  count       Int
+
+  Category   Category @relation(fields: [categoryId], references: [id])
+  categoryId String
+
+  Transactions Transaction[]
+}
+
+enum TransactionType {
+  BUY
+  TRANSFER
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model Transaction {
+  id             String            @id @default(cuid())
+  amount         Float
+  type           TransactionType
+  status         TransactionStatus @default(PENDING)
+  randomGradient Json
+  productsBought CategoryItem[]
+
+  reciever   User?   @relation(fields: [recieverId], references: [id], name: "recieverTransactions", onDelete: Cascade)
+  recieverId String?
+
+  sender   User?   @relation(fields: [senderId], references: [id], name: "senderTransactions", onDelete: Cascade)
+  senderId String?
+
+  createdAt DateTime @default(now())
+}
+
+model Klass {
+  id   String @id @default(cuid())
+  name String @unique
+
+  teachers User[] @relation(name: "teacherClasses")
+  students User[] @relation(name: "studentClass")
+}
+
+enum MusicOrderStatus {
+  ACCEPTED
+  CANCELLED
+  DELIVERED
+}
+
+model MusicOrder {
+  id         String           @id @default(cuid())
+  status     MusicOrderStatus @default(DELIVERED)
+  buyer      User             @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  buyerId    String
+  musicUrl   String
+  musicImage String
+  musicTitle String
+  createdAt  DateTime         @default(now())
+}
+
+model Kazna {
+  id         String          @id @default(cuid())
+  amount     Float           @default(0)
+  Transfers  KaznaTransfer[]
+}
+
+model KaznaTransfer {
+  id        String   @id @default(cuid())
+  sender    User     @relation(fields: [senderId], references: [id])
+  amount    Float
+  message   String
+  Kazna     Kazna    @relation(fields: [kaznaId], references: [id])
+  createdAt DateTime @default(now())
+  senderId  String
+  kaznaId   String
+}
