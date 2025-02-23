@@ -19,6 +19,7 @@ const jwt_1 = require("@nestjs/jwt");
 const websockets_1 = require("@nestjs/websockets");
 const socket_io_1 = require("socket.io");
 const auth_guard_1 = require("../auth/auth.guard");
+const auth_middleware_1 = require("../auth/auth.middleware");
 const prisma_service_1 = require("../db/prisma.service");
 let SellerGateway = class SellerGateway {
     jwtService;
@@ -30,6 +31,9 @@ let SellerGateway = class SellerGateway {
         this.config = config;
     }
     server;
+    async afterInit(socket) {
+        socket.use((0, auth_middleware_1.AuthWsMiddleware)(this.config));
+    }
     async handleJoinRoom(data, client) {
         client.join(data.roomId);
     }
@@ -46,6 +50,9 @@ let SellerGateway = class SellerGateway {
         if (!transaction || transaction.status !== 'SUCCESS') {
             throw new websockets_1.WsException('Invalid credentials');
         }
+        if (transaction.senderId !== client.user.id) {
+            throw new websockets_1.WsException('Unauthorized');
+        }
         client.to(decode.randomChannelId).emit('pay', { error: null });
     }
 };
@@ -54,6 +61,12 @@ __decorate([
     (0, websockets_1.WebSocketServer)(),
     __metadata("design:type", socket_io_1.Server)
 ], SellerGateway.prototype, "server", void 0);
+__decorate([
+    __param(0, (0, websockets_1.ConnectedSocket)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [socket_io_1.Socket]),
+    __metadata("design:returntype", Promise)
+], SellerGateway.prototype, "afterInit", null);
 __decorate([
     (0, common_1.UseGuards)(auth_guard_1.SocketAuthGuard),
     (0, websockets_1.SubscribeMessage)('joinRoom'),
@@ -69,7 +82,7 @@ __decorate([
     __param(0, (0, websockets_1.MessageBody)()),
     __param(1, (0, websockets_1.ConnectedSocket)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, socket_io_1.Socket]),
+    __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], SellerGateway.prototype, "handlePay", null);
 exports.SellerGateway = SellerGateway = __decorate([

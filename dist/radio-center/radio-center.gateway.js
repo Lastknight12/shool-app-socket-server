@@ -14,17 +14,27 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RadioCenterGateway = void 0;
 const common_1 = require("@nestjs/common");
+const config_1 = require("@nestjs/config");
 const websockets_1 = require("@nestjs/websockets");
 const socket_io_1 = require("socket.io");
-const server_guard_1 = require("../auth/server.guard");
+const auth_guard_1 = require("../auth/auth.guard");
+const auth_middleware_1 = require("../auth/auth.middleware");
 const prisma_service_1 = require("../db/prisma.service");
 let RadioCenterGateway = class RadioCenterGateway {
     prisma;
-    constructor(prisma) {
+    config;
+    constructor(prisma, config) {
         this.prisma = prisma;
+        this.config = config;
+    }
+    async afterInit(socket) {
+        socket.use((0, auth_middleware_1.AuthWsMiddleware)(this.config));
     }
     server;
     async handleOrderCreated(data, client) {
+        if (client.user.role !== 'STUDENT') {
+            throw new websockets_1.WsException('Unauthorized');
+        }
         const order = await this.prisma.musicOrder.findUnique({
             where: {
                 id: data,
@@ -44,6 +54,9 @@ let RadioCenterGateway = class RadioCenterGateway {
         client.to('radioCenter').emit('order-created', formatedOrder);
     }
     async handleAddTrack(data, client) {
+        if (client.user.role !== 'RADIO_CENTER') {
+            throw new websockets_1.WsException('Unauthorized');
+        }
         const order = await this.prisma.musicOrder.findUnique({
             where: {
                 id: data,
@@ -55,42 +68,47 @@ let RadioCenterGateway = class RadioCenterGateway {
         client.to('radioCenter-client').emit('add-track', order);
     }
     async handleRefresh(client) {
+        if (client.user.role !== 'RADIO_CENTER') {
+            throw new websockets_1.WsException('Unauthorized');
+        }
         client.to('radioCenter').emit('refresh');
     }
 };
 exports.RadioCenterGateway = RadioCenterGateway;
 __decorate([
     (0, websockets_1.WebSocketServer)(),
-    __metadata("design:type", socket_io_1.Server)
-], RadioCenterGateway.prototype, "server", void 0);
-__decorate([
-    (0, common_1.UseGuards)(server_guard_1.ServerAuthGuard),
-    (0, websockets_1.SubscribeMessage)('order-created'),
-    __param(0, (0, websockets_1.MessageBody)()),
-    __param(1, (0, websockets_1.ConnectedSocket)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, socket_io_1.Socket]),
-    __metadata("design:returntype", Promise)
-], RadioCenterGateway.prototype, "handleOrderCreated", null);
-__decorate([
-    (0, common_1.UseGuards)(server_guard_1.ServerAuthGuard),
-    (0, websockets_1.SubscribeMessage)('add-track'),
-    __param(0, (0, websockets_1.MessageBody)()),
-    __param(1, (0, websockets_1.ConnectedSocket)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String, socket_io_1.Socket]),
-    __metadata("design:returntype", Promise)
-], RadioCenterGateway.prototype, "handleAddTrack", null);
-__decorate([
-    (0, common_1.UseGuards)(server_guard_1.ServerAuthGuard),
-    (0, websockets_1.SubscribeMessage)('refresh'),
     __param(0, (0, websockets_1.ConnectedSocket)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [socket_io_1.Socket]),
     __metadata("design:returntype", Promise)
+], RadioCenterGateway.prototype, "afterInit", null);
+__decorate([
+    (0, websockets_1.SubscribeMessage)('order-created'),
+    __param(0, (0, websockets_1.MessageBody)()),
+    __param(1, (0, websockets_1.ConnectedSocket)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], RadioCenterGateway.prototype, "handleOrderCreated", null);
+__decorate([
+    (0, websockets_1.SubscribeMessage)('add-track'),
+    __param(0, (0, websockets_1.MessageBody)()),
+    __param(1, (0, websockets_1.ConnectedSocket)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], RadioCenterGateway.prototype, "handleAddTrack", null);
+__decorate([
+    (0, websockets_1.SubscribeMessage)('refresh'),
+    __param(0, (0, websockets_1.ConnectedSocket)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
 ], RadioCenterGateway.prototype, "handleRefresh", null);
 exports.RadioCenterGateway = RadioCenterGateway = __decorate([
     (0, websockets_1.WebSocketGateway)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    (0, common_1.UseGuards)(auth_guard_1.SocketAuthGuard),
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        config_1.ConfigService])
 ], RadioCenterGateway);
 //# sourceMappingURL=radio-center.gateway.js.map

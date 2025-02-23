@@ -11,8 +11,9 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { SocketAuthGuard } from 'src/auth/auth.guard';
-import { ServerAuthGuard } from 'src/auth/server.guard';
+import { AuthWsMiddleware } from 'src/auth/auth.middleware';
 import { PrismaService } from 'src/db/prisma.service';
+import { CSocket } from 'src/main';
 
 interface payToken {
   products: { id: string; count: number }[];
@@ -35,6 +36,10 @@ export class SellerGateway {
   @WebSocketServer()
   server: Server;
 
+  async afterInit(@ConnectedSocket() socket: Socket) {
+    socket.use(AuthWsMiddleware(this.config));
+  }
+
   @UseGuards(SocketAuthGuard)
   @SubscribeMessage('joinRoom')
   async handleJoinRoom(
@@ -48,7 +53,7 @@ export class SellerGateway {
   @SubscribeMessage('pay')
   async handlePay(
     @MessageBody() data: string,
-    @ConnectedSocket() client: Socket,
+    @ConnectedSocket() client: CSocket,
   ) {
     const decode = (await this.jwtService.verifyAsync(data, {
       secret: this.config.get('JWT_SECRET'),
@@ -63,6 +68,10 @@ export class SellerGateway {
 
     if (!transaction || transaction.status !== 'SUCCESS') {
       throw new WsException('Invalid credentials');
+    }
+
+    if (transaction.senderId !== client.user.id) {
+      throw new WsException('Unauthorized');
     }
 
     client.to(decode.randomChannelId).emit('pay', { error: null });
