@@ -8,21 +8,9 @@ import {
   WebSocketServer,
   WsException,
 } from '@nestjs/websockets';
-import { MusicOrder } from '@prisma/client';
 import { Server, Socket } from 'socket.io';
-import { SocketAuthGuard } from 'src/auth/auth.guard';
 import { ServerAuthGuard } from 'src/auth/server.guard';
 import { PrismaService } from 'src/db/prisma.service';
-
-interface Order
-  extends Pick<
-    MusicOrder,
-    'id' | 'musicUrl' | 'status' | 'musicImage' | 'musicTitle'
-  > {
-  buyer: {
-    name: string;
-  };
-}
 
 @WebSocketGateway()
 export class RadioCenterGateway {

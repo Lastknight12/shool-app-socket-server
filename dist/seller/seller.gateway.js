@@ -14,6 +14,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SellerGateway = void 0;
 const common_1 = require("@nestjs/common");
+const config_1 = require("@nestjs/config");
 const jwt_1 = require("@nestjs/jwt");
 const websockets_1 = require("@nestjs/websockets");
 const socket_io_1 = require("socket.io");
@@ -22,18 +23,19 @@ const prisma_service_1 = require("../db/prisma.service");
 let SellerGateway = class SellerGateway {
     jwtService;
     prisma;
-    constructor(jwtService, prisma) {
+    config;
+    constructor(jwtService, prisma, config) {
         this.jwtService = jwtService;
         this.prisma = prisma;
+        this.config = config;
     }
     server;
     async handleJoinRoom(data, client) {
         client.join(data.roomId);
-        console.log('joined', data.roomId);
     }
     async handlePay(data, client) {
         const decode = (await this.jwtService.verifyAsync(data, {
-            secret: 'test',
+            secret: this.config.get('JWT_SECRET'),
         }));
         const transaction = await this.prisma.transaction.findUnique({
             where: {
@@ -53,6 +55,7 @@ __decorate([
     __metadata("design:type", socket_io_1.Server)
 ], SellerGateway.prototype, "server", void 0);
 __decorate([
+    (0, common_1.UseGuards)(auth_guard_1.SocketAuthGuard),
     (0, websockets_1.SubscribeMessage)('joinRoom'),
     __param(0, (0, websockets_1.MessageBody)()),
     __param(1, (0, websockets_1.ConnectedSocket)()),
@@ -61,6 +64,7 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], SellerGateway.prototype, "handleJoinRoom", null);
 __decorate([
+    (0, common_1.UseGuards)(auth_guard_1.SocketAuthGuard),
     (0, websockets_1.SubscribeMessage)('pay'),
     __param(0, (0, websockets_1.MessageBody)()),
     __param(1, (0, websockets_1.ConnectedSocket)()),
@@ -71,12 +75,12 @@ __decorate([
 exports.SellerGateway = SellerGateway = __decorate([
     (0, websockets_1.WebSocketGateway)({
         cors: {
-            origin: 'http://localhost:3000',
+            origin: process.env.CORS_ORIGIN,
             credentials: true,
         },
     }),
-    (0, common_1.UseGuards)(auth_guard_1.SocketAuthGuard),
     __metadata("design:paramtypes", [jwt_1.JwtService,
-        prisma_service_1.PrismaService])
+        prisma_service_1.PrismaService,
+        config_1.ConfigService])
 ], SellerGateway);
 //# sourceMappingURL=seller.gateway.js.map
