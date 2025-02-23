@@ -11,6 +11,7 @@ import {
 import { MusicOrder } from '@prisma/client';
 import { Server, Socket } from 'socket.io';
 import { SocketAuthGuard } from 'src/auth/auth.guard';
+import { ServerAuthGuard } from 'src/auth/server.guard';
 import { PrismaService } from 'src/db/prisma.service';
 
 interface Order
@@ -24,20 +25,27 @@ interface Order
 }
 
 @WebSocketGateway()
-@UseGuards(SocketAuthGuard)
 export class RadioCenterGateway {
   constructor(private prisma: PrismaService) {}
   @WebSocketServer()
   server: Server;
 
+  @UseGuards(ServerAuthGuard)
   @SubscribeMessage('order-created')
   async handleOrderCreated(
-    @MessageBody() data: Order,
+    @MessageBody() data: string,
     @ConnectedSocket() client: Socket,
   ) {
-    const order = this.prisma.musicOrder.findUnique({
+    const order = await this.prisma.musicOrder.findUnique({
       where: {
-        id: data.id,
+        id: data,
+      },
+      include: {
+        buyer: {
+          select: {
+            name: true,
+          },
+        },
       },
     });
 
@@ -45,17 +53,20 @@ export class RadioCenterGateway {
       throw new WsException('Invalid data');
     }
 
-    client.to('radioCenter').emit('order-created', data);
+    const { buyerId, ...formatedOrder } = order;
+
+    client.to('radioCenter').emit('order-created', formatedOrder);
   }
 
+  @UseGuards(ServerAuthGuard)
   @SubscribeMessage('add-track')
   async handleAddTrack(
-    @MessageBody() data: Order,
+    @MessageBody() data: string,
     @ConnectedSocket() client: Socket,
   ) {
-    const order = this.prisma.musicOrder.findUnique({
+    const order = await this.prisma.musicOrder.findUnique({
       where: {
-        id: data.id,
+        id: data,
       },
     });
 
@@ -63,14 +74,12 @@ export class RadioCenterGateway {
       throw new WsException('Invalid data');
     }
 
-    client.to('radioCenter-client').emit('add-track', data);
+    client.to('radioCenter-client').emit('add-track', order);
   }
 
+  @UseGuards(ServerAuthGuard)
   @SubscribeMessage('refresh')
-  async handleRefresh(
-    @MessageBody() data: Order,
-    @ConnectedSocket() client: Socket,
-  ) {
+  async handleRefresh(@ConnectedSocket() client: Socket) {
     client.to('radioCenter').emit('refresh');
   }
 }

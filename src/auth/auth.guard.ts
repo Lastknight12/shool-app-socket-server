@@ -1,15 +1,11 @@
-import { decode } from '@auth/core/jwt';
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import hkdf from '@panva/hkdf';
 import { jwtDecrypt } from 'jose';
 
 @Injectable()
 export class SocketAuthGuard implements CanActivate {
+  constructor(private config: ConfigService) {}
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const headers = context.switchToWs().getClient().request.headers;
 
