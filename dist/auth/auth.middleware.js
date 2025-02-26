@@ -25,7 +25,8 @@ const AuthWsMiddleware = (configService) => {
                 const { payload } = await (0, jose_1.jwtDecrypt)(token, encryptionSecret, {
                     clockTolerance: 15,
                 });
-                decoded = payload;
+                const { sub, iat, exp, jti, ...user } = payload;
+                decoded = { id: sub, ...user };
             }
             catch (err) {
                 if (err.code === 'ERR_JWE_INVALID') {

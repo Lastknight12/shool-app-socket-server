@@ -4,6 +4,56 @@ import { jwtDecrypt } from 'jose';
 
 type SocketMiddleware = (socket: any, next: (err?: Error) => void) => void;
 
+export type CustomUser =
+  | {
+      id: string;
+      name: string;
+      email: string;
+      image: string;
+      balance: number;
+      role: 'STUDENT';
+      studentClass: { id: string; name: string } | null;
+    }
+  | {
+      id: string;
+      name: string;
+      email: string;
+      image: string;
+      balance: number;
+      role: 'TEACHER';
+      teacherClasses: { id: string; name: string }[];
+    }
+  | {
+      id: string;
+      name: string;
+      email: string;
+      image: string;
+      balance: number;
+      role: 'ADMIN';
+    }
+  | {
+      id: string;
+      name: string;
+      email: string;
+      image: string;
+      balance: number;
+      role: 'RADIO_CENTER';
+    }
+  | {
+      id: string;
+      name: string;
+      email: string;
+      image: string;
+      balance: number;
+      role: 'SELLER';
+    };
+interface JWT extends Omit<CustomUser, 'id'> {
+  sub: string;
+  iat: number;
+  exp: number;
+  jti: string;
+}
+
 export const AuthWsMiddleware = (
   configService: ConfigService,
 ): SocketMiddleware => {
@@ -44,7 +94,8 @@ export const AuthWsMiddleware = (
           clockTolerance: 15,
         });
 
-        decoded = payload;
+        const { sub, iat, exp, jti, ...user } = payload as unknown as JWT;
+        decoded = { id: sub, ...user } as CustomUser;
       } catch (err) {
         if (err.code === 'ERR_JWE_INVALID') {
           return false;

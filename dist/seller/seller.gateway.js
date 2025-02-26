@@ -38,6 +38,7 @@ let SellerGateway = class SellerGateway {
         client.join(data.roomId);
     }
     async handlePay(data, client) {
+        console.log('pay');
         const decode = (await this.jwtService.verifyAsync(data, {
             secret: this.config.get('JWT_SECRET'),
         }));
@@ -47,12 +48,14 @@ let SellerGateway = class SellerGateway {
                 type: 'BUY',
             },
         });
+        console.log(transaction?.senderId, client.user.id);
         if (!transaction || transaction.status !== 'SUCCESS') {
             throw new websockets_1.WsException('Invalid credentials');
         }
         if (transaction.senderId !== client.user.id) {
             throw new websockets_1.WsException('Unauthorized');
         }
+        console.log(decode.randomChannelId);
         client.to(decode.randomChannelId).emit('pay', { error: null });
     }
 };
