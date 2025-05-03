@@ -32,26 +32,18 @@ let SocketAuthGuard = class SocketAuthGuard {
         async function getDerivedEncryptionKey(keyMaterial, salt) {
             return await (0, hkdf_1.default)('sha256', keyMaterial, salt, `NextAuth.js Generated Encryption Key${salt ? ` (${salt})` : ''}`, 32);
         }
-        const encryptionSecret = await getDerivedEncryptionKey('test', '');
+        const jweSecret = this.config.get('JWT_SECRET');
+        const encryptionSecret = await getDerivedEncryptionKey(jweSecret, '');
         const token = getCookieValue(headers.cookie, 'next-auth.session-token');
-        let decoded;
         try {
-            const { payload } = await (0, jose_1.jwtDecrypt)(token, encryptionSecret, {
+            await (0, jose_1.jwtDecrypt)(token, encryptionSecret, {
                 clockTolerance: 15,
             });
-            decoded = payload;
         }
-        catch (err) {
-            if (err.code === 'ERR_JWE_INVALID') {
-                return false;
-            }
-        }
-        if (decoded) {
-            return true;
-        }
-        else {
+        catch {
             return false;
         }
+        return true;
     }
 };
 exports.SocketAuthGuard = SocketAuthGuard;

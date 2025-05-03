@@ -31,26 +31,18 @@ export class SocketAuthGuard implements CanActivate {
       );
     }
 
-    const encryptionSecret = await getDerivedEncryptionKey('test', '');
+    const jweSecret = this.config.get('JWT_SECRET');
+    const encryptionSecret = await getDerivedEncryptionKey(jweSecret, '');
 
     const token = getCookieValue(headers.cookie, 'next-auth.session-token');
-    let decoded;
     try {
-      const { payload } = await jwtDecrypt(token, encryptionSecret, {
+      await jwtDecrypt(token, encryptionSecret, {
         clockTolerance: 15,
       });
-
-      decoded = payload;
-    } catch (err) {
-      if (err.code === 'ERR_JWE_INVALID') {
-        return false;
-      }
-    }
-
-    if (decoded) {
-      return true;
-    } else {
+    } catch {
       return false;
     }
+
+    return true;
   }
 }

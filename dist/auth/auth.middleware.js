@@ -18,7 +18,8 @@ const AuthWsMiddleware = (configService) => {
             async function getDerivedEncryptionKey(keyMaterial, salt) {
                 return await (0, hkdf_1.default)('sha256', keyMaterial, salt, `NextAuth.js Generated Encryption Key${salt ? ` (${salt})` : ''}`, 32);
             }
-            const encryptionSecret = await getDerivedEncryptionKey('test', '');
+            const jweSecret = configService.get('JWT_SECRET');
+            const encryptionSecret = await getDerivedEncryptionKey(jweSecret, '');
             const token = getCookieValue(headers.cookie, 'next-auth.session-token');
             let decoded;
             try {
@@ -28,10 +29,8 @@ const AuthWsMiddleware = (configService) => {
                 const { sub, iat, exp, jti, ...user } = payload;
                 decoded = { id: sub, ...user };
             }
-            catch (err) {
-                if (err.code === 'ERR_JWE_INVALID') {
-                    return false;
-                }
+            catch {
+                next(new Error('Unauthorized'));
             }
             socket = Object.assign(socket, {
                 user: decoded,

@@ -83,7 +83,8 @@ export const AuthWsMiddleware = (
         );
       }
 
-      const encryptionSecret = await getDerivedEncryptionKey('test', '');
+      const jweSecret = configService.get('JWT_SECRET');
+      const encryptionSecret = await getDerivedEncryptionKey(jweSecret, '');
 
       const token = getCookieValue(headers.cookie, 'next-auth.session-token');
 
@@ -96,15 +97,14 @@ export const AuthWsMiddleware = (
 
         const { sub, iat, exp, jti, ...user } = payload as unknown as JWT;
         decoded = { id: sub, ...user } as CustomUser;
-      } catch (err) {
-        if (err.code === 'ERR_JWE_INVALID') {
-          return false;
-        }
+      } catch {
+        next(new Error('Unauthorized'));
       }
 
       socket = Object.assign(socket, {
         user: decoded,
       });
+
       next();
     } catch (error) {
       next(new Error('Unauthorized'));

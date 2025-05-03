@@ -55,8 +55,6 @@ export class SellerGateway {
     @MessageBody() data: string,
     @ConnectedSocket() client: CSocket,
   ) {
-    console.log('pay');
-
     const decode = (await this.jwtService.verifyAsync(data, {
       secret: this.config.get('JWT_SECRET'),
     })) as payToken;
@@ -68,8 +66,6 @@ export class SellerGateway {
       },
     });
 
-    console.log(transaction?.senderId, client.user.id);
-
     if (!transaction || transaction.status !== 'SUCCESS') {
       throw new WsException('Invalid credentials');
     }
@@ -77,8 +73,6 @@ export class SellerGateway {
     if (transaction.senderId !== client.user.id) {
       throw new WsException('Unauthorized');
     }
-
-    console.log(decode.randomChannelId);
 
     client.to(decode.randomChannelId).emit('pay', { error: null });
   }
